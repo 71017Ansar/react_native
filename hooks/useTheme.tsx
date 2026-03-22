@@ -101,20 +101,46 @@ interface ThemeContextType {
 
 const ThemeContext = createContext<undefined | ThemeContextType>(undefined);
 
+const THEME_STORAGE_KEY = "darkMode";
+
+const readStoredThemePreference = async () => {
+  try {
+    const value = await AsyncStorage.getItem(THEME_STORAGE_KEY);
+    return value ? JSON.parse(value) : null;
+  } catch {
+    return null;
+  }
+};
+
+const writeStoredThemePreference = async (isDarkMode: boolean) => {
+  try {
+    await AsyncStorage.setItem(THEME_STORAGE_KEY, JSON.stringify(isDarkMode));
+  } catch {
+    // Storage is optional for theme persistence, so we avoid crashing if it's unavailable.
+  }
+};
+
 export const ThemeProvider = ({ children }: { children: ReactNode }) => {
   const [isDarkMode, setIsDarkMode] = useState(false);
 
   useEffect(() => {
-    // get the user's choice
-    AsyncStorage.getItem("darkMode").then((value) => {
-      if (value) setIsDarkMode(JSON.parse(value));
+    let isMounted = true;
+
+    readStoredThemePreference().then((storedValue) => {
+      if (isMounted && typeof storedValue === "boolean") {
+        setIsDarkMode(storedValue);
+      }
     });
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const toggleDarkMode = async () => {
     const newMode = !isDarkMode;
     setIsDarkMode(newMode);
-    await AsyncStorage.setItem("darkMode", JSON.stringify(newMode));
+    await writeStoredThemePreference(newMode);
   };
 
   const colors = isDarkMode ? darkColors : lightColors;
